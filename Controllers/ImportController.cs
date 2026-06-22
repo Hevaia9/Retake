@@ -22,7 +22,7 @@ namespace RetakeSystem.Controllers
             return View();
         }
 
-        // POST: /Import/Results
+        // POST: /Import/Results - импорт ведомостей (СУЩЕСТВУЮЩИЙ МЕТОД, НЕ ТРОГАЕМ)
         [HttpPost]
         public async Task<IActionResult> ImportResults(IFormFile file)
         {
@@ -38,7 +38,6 @@ namespace RetakeSystem.Controllers
                 using var workbook = new XLWorkbook(stream);
                 var worksheet = workbook.Worksheet(1);
 
-                // === Извлечение группы и семестра ===
                 string group = "";
                 int semester = 0;
                 int course = 0;
@@ -68,7 +67,6 @@ namespace RetakeSystem.Controllers
                     }
                 }
 
-                // === Поиск заголовков ===
                 int headerRow = 0;
                 int studentCol = 0;
 
@@ -94,17 +92,14 @@ namespace RetakeSystem.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // === Получение названий дисциплин из заголовка ===
-                // ВАЖНО: Берём из строки ПОСЛЕ headerRow (где цифры 1,2,3...)
                 var disciplineNames = new List<string>();
                 int lastCol = worksheet.LastColumnUsed().ColumnNumber();
-                int skipColumnsFromEnd = 9; // Пропускаем последние 9 колонок (статистика)
+                int skipColumnsFromEnd = 9;
 
                 for (int col = studentCol + 1; col <= lastCol - skipColumnsFromEnd; col++)
                 {
                     try
                     {
-                        // Берём из СЛЕДУЮЩЕЙ строки после заголовка с цифрами
                         var discName = worksheet.Cell(headerRow + 1, col).GetString().Trim();
 
                         if (string.IsNullOrEmpty(discName) ||
@@ -125,9 +120,8 @@ namespace RetakeSystem.Controllers
 
                         disciplineNames.Add(discName);
                     }
-                    catch (Exception ex)
+                    catch
                     {
-                        Console.WriteLine($"Пропущена колонка {col}: {ex.Message}");
                         continue;
                     }
                 }
@@ -138,7 +132,6 @@ namespace RetakeSystem.Controllers
                     return RedirectToAction("Index");
                 }
 
-                // === Чтение данных студентов ===
                 int importedCount = 0;
                 int debtCount = 0;
 
@@ -175,7 +168,6 @@ namespace RetakeSystem.Controllers
 
                         importedCount++;
 
-                        // === Чтение оценок ===
                         for (int i = 0; i < disciplineNames.Count; i++)
                         {
                             int col = studentCol + 1 + i;
@@ -206,7 +198,6 @@ namespace RetakeSystem.Controllers
 
                             if (string.IsNullOrEmpty(grade)) continue;
 
-                            // Ищем задолженности
                             if (grade == "2" || grade.Contains("не яв") || grade == "неяв")
                             {
                                 string disciplineTitle = disciplineNames[i];
@@ -264,20 +255,13 @@ namespace RetakeSystem.Controllers
             }
             catch (Exception ex)
             {
-                string errorMsg = $"❌ Ошибка при импорте: {ex.Message}";
-
-                if (ex.InnerException != null)
-                {
-                    errorMsg += $"\nВнутренняя ошибка: {ex.InnerException.Message}";
-                }
-
-                TempData["Error"] = errorMsg;
+                TempData["Error"] = $"❌ Ошибка: {ex.Message}";
             }
 
             return RedirectToAction("Index");
         }
 
-        // POST: /Import/Curriculum
+        // POST: /Import/Curriculum - НОВЫЙ ПРАВИЛЬНЫЙ КОД ДЛЯ УЧЕБНЫХ ПЛАНОВ
         [HttpPost]
         public async Task<IActionResult> ImportCurriculum(IFormFile file, string specialtyCode)
         {
@@ -287,7 +271,7 @@ namespace RetakeSystem.Controllers
                 return RedirectToAction("Index");
             }
 
-            if (string.IsNullOrEmpty(specialtyCode))
+            if (string.IsNullOrWhiteSpace(specialtyCode))
             {
                 TempData["Error"] = "Не указан код специальности";
                 return RedirectToAction("Index");
@@ -297,101 +281,125 @@ namespace RetakeSystem.Controllers
             {
                 using var stream = file.OpenReadStream();
                 using var workbook = new XLWorkbook(stream);
-                var worksheet = workbook.Worksheet(1);
 
-                int importedCount = 0;
-                var lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
-                var lastCol = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+                // Ищем лист "уч_план" - именно там находится таблица с дисциплинами
+                IXLWorksheet worksheet;
+                var planSheet = workbook.Worksheets.FirstOrDefault(w =>
+                    w.Name.ToLower().Contains("уч_план") ||
+                    w.Name.ToLower().Contains("уч_plan") ||
+                    w.Name.ToLower().Contains("план"));
 
-                // 1. Ищем строку-заголовок таблицы дисциплин
-                // Ключевые слова: "Индекс" и "Наименование"
+                if (planSheet != null)
+                {
+                    worksheet = planSheet;
+                }
+                else
+                {
+                    worksheet = workbook.Worksheet(1);
+                }
+
+                int lastRow = worksheet.LastRowUsed()?.RowNumber() ?? 0;
+                int lastCol = worksheet.LastColumnUsed()?.ColumnNumber() ?? 0;
+
+                // ШАГ 1: Ищем строку с заголовками "Индекс" и "Наименование"
                 int headerRow = 0;
                 int indexCol = 0;
                 int nameCol = 0;
                 int hoursCol = 0;
-                int assessmentCol = 0;
 
-                for (int row = 1; row <= lastRow; row++)
+                for (int row = 1; row <= Math.Min(50, lastRow); row++)
                 {
-                    // Проверяем ячейки в строке, ищем заголовки
                     for (int col = 1; col <= Math.Min(20, lastCol); col++)
                     {
                         try
                         {
                             var cellValue = worksheet.Cell(row, col).GetString().Trim().ToLower();
 
-                            // Ищем колонку "Индекс"
                             if (cellValue.Contains("индекс") && indexCol == 0)
                             {
                                 headerRow = row;
                                 indexCol = col;
                             }
-
-                            // Ищем колонку "Наименование" (или похожее)
-                            if (cellValue.Contains("наименование") && nameCol == 0)
+                            else if (cellValue.Contains("наименование") && nameCol == 0 && headerRow > 0)
                             {
                                 nameCol = col;
-                            }
-
-                            // Ищем колонку "объём образовательной нагрузки" (или похожее)
-                            // Важно: в сводной таблице тоже есть "объем", но там нет "индекса" в соседних колонках
-                            if ((cellValue.Contains("объём образовательной нагрузки") ||
-                                 cellValue.Contains("объем образовательной нагрузки") ||
-                                 (cellValue.Contains("всего") && cellValue.Contains("час"))) && hoursCol == 0)
-                            {
-                                hoursCol = col;
                             }
                         }
                         catch { continue; }
                     }
 
-                    // Если нашли и Индекс, и Наименование - значит заголовок найден
-                    if (headerRow > 0 && nameCol > 0)
-                    {
-                        // Если не нашли колонку часов жестко по названию, ищем её логически (обычно правее названий)
-                        if (hoursCol == 0)
-                        {
-                            // Ищем колонку справа от названий, которая содержит числа
-                            for (int col = nameCol + 5; col <= Math.Min(lastCol, nameCol + 20); col++)
-                            {
-                                var headerCell = worksheet.Cell(row, col).GetString().Trim().ToLower();
-                                if (headerCell.Contains("объём") || headerCell.Contains("всего") || headerCell.Contains("нагрузка"))
-                                {
-                                    hoursCol = col;
-                                    break;
-                                }
-                            }
-                        }
-
-                        // Ищем колонку с аттестацией (обычно это колонки семестров с буквами Э, З, ДЗ)
-                        for (int col = indexCol + 2; col <= Math.Min(lastCol, indexCol + 10); col++)
-                        {
-                            var headerCell = worksheet.Cell(row, col).GetString().Trim().ToLower();
-                            if (headerCell.Contains("семестр") || headerCell.Contains("аттест"))
-                            {
-                                assessmentCol = col; // Берем первый семестр как пример, логику уточним в цикле
-                                break;
-                            }
-                        }
-
-                        break; // Заголовок найден, выходим из поиска
-                    }
+                    if (headerRow > 0 && nameCol > 0) break;
                 }
 
                 if (headerRow == 0 || nameCol == 0)
                 {
-                    TempData["Error"] = "Не удалось найти таблицу дисциплин. Убедитесь, что файл содержит колонки 'Индекс' и 'Наименование'.";
+                    TempData["Error"] = $"Не удалось найти заголовки 'Индекс' и 'Наименование'. Найдено: Индекс={indexCol}, Наименование={nameCol}";
                     return RedirectToAction("Index");
                 }
 
-                // Удаляем старые дисциплины этой специальности перед импортом
+                // ШАГ 2: Ищем колонку "объём образовательной нагрузки" в строке заголовков
+                for (int col = nameCol + 1; col <= Math.Min(lastCol, nameCol + 20); col++)
+                {
+                    try
+                    {
+                        // Проверяем несколько строк заголовков
+                        for (int r = headerRow; r <= headerRow + 5; r++)
+                        {
+                            var cellValue = worksheet.Cell(r, col).GetString().Trim().ToLower();
+                            if (cellValue.Contains("объём образовательной нагрузки") ||
+                                cellValue.Contains("объем образовательной нагрузки") ||
+                                (cellValue.Contains("образовательной нагрузки") && cellValue.Contains("объём")))
+                            {
+                                hoursCol = col;
+                                break;
+                            }
+                        }
+                        if (hoursCol > 0) break;
+                    }
+                    catch { continue; }
+                }
+
+                // Если не нашли по названию, ищем по позиции (обычно это колонка после семестров)
+                if (hoursCol == 0)
+                {
+                    // Считаем количество колонок с семестрами
+                    int semestersCount = 0;
+                    for (int col = nameCol + 1; col <= Math.Min(lastCol, nameCol + 15); col++)
+                    {
+                        try
+                        {
+                            for (int r = headerRow; r <= headerRow + 3; r++)
+                            {
+                                var cellValue = worksheet.Cell(r, col).GetString().Trim().ToLower();
+                                if (cellValue.Contains("семестр"))
+                                {
+                                    semestersCount++;
+                                    break;
+                                }
+                            }
+                        }
+                        catch { continue; }
+                    }
+
+                    // Колонка с часами обычно идёт сразу после семестров
+                    hoursCol = nameCol + semestersCount + 1;
+                }
+
+                // ШАГ 3: Определяем диапазон колонок с формами аттестации
+                int assessmentStartCol = nameCol + 1;
+                int assessmentEndCol = hoursCol - 1;
+
+                // ШАГ 4: Удаляем старые дисциплины этой специальности
                 var oldDisciplines = await _db.Disciplines
                     .Where(d => d.SpecialtyCode == specialtyCode)
                     .ToListAsync();
                 _db.Disciplines.RemoveRange(oldDisciplines);
                 await _db.SaveChangesAsync();
 
-                // 2. Читаем строки с дисциплинами
+                // ШАГ 5: Читаем дисциплины
+                int importedCount = 0;
+                int skippedCount = 0;
+
                 for (int row = headerRow + 1; row <= lastRow; row++)
                 {
                     try
@@ -406,62 +414,117 @@ namespace RetakeSystem.Controllers
                         var index = indexCell.GetString().Trim();
                         var title = nameCell.GetString().Trim();
 
-                        // --- ФИЛЬТРАЦИЯ ---
-
-                        // 1. Пропускаем заголовки циклов (ОУП.00, ОГСЭ.00 и т.д.)
-                        // Обычно у них нет точки с цифрой после, или название содержит "цикл"
-                        if (title.Contains("цикл") || title.Contains("ПРОМЕЖУТОЧНАЯ") || title.Contains("ГИА"))
+                        if (string.IsNullOrEmpty(index) || string.IsNullOrEmpty(title))
                             continue;
 
-                        // 2. Проверяем, что индекс похож на код дисциплины (содержит точку)
-                        // Например: ОУП.01, ОП.01, МДК.01
-                        if (!index.Contains("."))
+                        // Пропускаем заголовки циклов (ОУП.00, СГ.00, ОП.00, ПМ.00 и т.д.)
+                        if (Regex.IsMatch(index, @"\.\s*00\s*$") ||
+                            title.Contains("цикл", StringComparison.OrdinalIgnoreCase) ||
+                            title.Contains("Всего", StringComparison.OrdinalIgnoreCase) ||
+                            title.Contains("ГИА", StringComparison.OrdinalIgnoreCase) ||
+                            title.Contains("промежуточная аттестация", StringComparison.OrdinalIgnoreCase) ||
+                            title.Contains("Общие учебные предметы", StringComparison.OrdinalIgnoreCase))
+                        {
+                            skippedCount++;
                             continue;
+                        }
 
-                        // 3. Игнорируем строки "Общие учебные предметы" и подобные (у них нет индекса с точкой)
-                        if (string.IsNullOrEmpty(index) || index.Length < 3)
+                        // Пропускаем строки без точки в индексе (это не дисциплины)
+                        if (!index.Contains(".") && !index.Contains("МДК") && !index.Contains("УП") && !index.Contains("ПП"))
+                        {
+                            skippedCount++;
                             continue;
+                        }
 
-                        // --- ИЗВЛЕЧЕНИЕ ДАННЫХ ---
-
-                        // Часы
+                        // Получаем часы из колонки "объём образовательной нагрузки"
                         int totalHours = 0;
-                        if (hoursCol > 0)
+                        if (hoursCol > 0 && hoursCol <= lastCol)
                         {
                             var hoursCell = worksheet.Cell(row, hoursCol);
-                            if (hoursCell.DataType == XLDataType.Number)
+                            if (!hoursCell.IsEmpty())
                             {
-                                totalHours = (int)hoursCell.GetDouble();
-                            }
-                            else
-                            {
-                                int.TryParse(hoursCell.GetString().Trim(), out totalHours);
+                                if (hoursCell.DataType == XLDataType.Number)
+                                {
+                                    totalHours = (int)hoursCell.GetDouble();
+                                }
+                                else if (hoursCell.DataType == XLDataType.Text)
+                                {
+                                    var hoursText = hoursCell.GetString().Trim();
+                                    int.TryParse(Regex.Replace(hoursText, @"[^\d]", ""), out totalHours);
+                                }
                             }
                         }
 
-                        // Если часов 0, пропускаем (возможно это заголовок раздела)
-                        if (totalHours == 0) continue;
+                        // Если не нашли часы, ищем в соседних колонках
+                        if (totalHours == 0)
+                        {
+                            for (int col = hoursCol - 2; col <= hoursCol + 3; col++)
+                            {
+                                if (col < 1 || col > lastCol) continue;
+                                try
+                                {
+                                    var cell = worksheet.Cell(row, col);
+                                    if (cell.DataType == XLDataType.Number)
+                                    {
+                                        int hours = (int)cell.GetDouble();
+                                        if (hours > 10 && hours < 2000)
+                                        {
+                                            totalHours = hours;
+                                            break;
+                                        }
+                                    }
+                                }
+                                catch { continue; }
+                            }
+                        }
 
-                        // Вид аттестации
-                        string assessmentType = "ДЗ"; // По умолчанию
-                                                      // Ищем в колонках семестров (обычно справа от названия) символы Э, З, ДЗ
-                                                      // Проверяем диапазон колонок семестров (обычно это колонки 3-8 относительно начала таблицы)
-                        for (int col = indexCol + 2; col <= Math.Min(lastCol, indexCol + 15); col++)
+                        if (totalHours == 0)
+                        {
+                            skippedCount++;
+                            continue;
+                        }
+
+                        // Определяем вид аттестации (берём последнюю непустую в диапазоне семестров)
+                        string assessmentType = "";
+                        for (int col = assessmentEndCol; col >= assessmentStartCol; col--)
                         {
                             try
                             {
-                                var val = worksheet.Cell(row, col).GetString().Trim();
-                                if (val == "Э" || val == "З" || val == "ДЗ" || val == "Экв" || val == "ДЭ")
+                                var cellValue = worksheet.Cell(row, col).GetString().Trim();
+
+                                // Проверяем на формы аттестации
+                                if (cellValue == "Э" || cellValue == "Экв" || cellValue == "ДЭ")
                                 {
-                                    assessmentType = val;
-                                    // Не break, потому что нам нужно последнее значение (итоговая аттестация), 
-                                    // но часто достаточно первого найденного. Оставим последнее.
+                                    assessmentType = cellValue;
+                                    break; // Экзамен имеет приоритет
+                                }
+                                else if (cellValue == "З" && string.IsNullOrEmpty(assessmentType))
+                                {
+                                    assessmentType = "З";
+                                }
+                                else if ((cellValue == "ДЗ" || cellValue.StartsWith("ДЗ")) && string.IsNullOrEmpty(assessmentType))
+                                {
+                                    assessmentType = "ДЗ";
+                                }
+                                else if (Regex.IsMatch(cellValue, @"^(Э|З|ДЗ|Экв|ДЭ)\d*$"))
+                                {
+                                    // Обрабатываем варианты типа "ДЗ1", "ДЗ2", "ДЗ3"
+                                    var match = Regex.Match(cellValue, @"^(Э|З|ДЗ|Экв|ДЭ)");
+                                    if (match.Success)
+                                    {
+                                        assessmentType = match.Groups[1].Value;
+                                    }
                                 }
                             }
-                            catch { }
+                            catch { continue; }
                         }
 
-                        // Сохраняем в БД
+                        if (string.IsNullOrEmpty(assessmentType))
+                        {
+                            assessmentType = "ДЗ"; // По умолчанию - диф. зачёт
+                        }
+
+                        // Сохраняем дисциплину
                         var discipline = new Discipline
                         {
                             Code = index,
@@ -476,18 +539,20 @@ namespace RetakeSystem.Controllers
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Ошибка при обработке строки {row}: {ex.Message}");
+                        Console.WriteLine($"Ошибка строки {row}: {ex.Message}");
                         continue;
                     }
                 }
 
                 await _db.SaveChangesAsync();
 
-                TempData["Success"] = $"✅ Успешно импортировано {importedCount} дисциплин для {specialtyCode}";
+                TempData["Success"] = $"✅ Импортировано дисциплин для {specialtyCode}: {importedCount}\n" +
+                                     $"⚠️ Пропущено строк: {skippedCount}\n" +
+                                     $"📊 Колонок: Индекс={indexCol}, Название={nameCol}, Часы={hoursCol}";
             }
             catch (Exception ex)
             {
-                TempData["Error"] = $"❌ Ошибка: {ex.Message}";
+                TempData["Error"] = $"❌ Ошибка: {ex.Message}\n\nStack: {ex.StackTrace}";
             }
 
             return RedirectToAction("Index");

@@ -1,0 +1,96 @@
+﻿@{
+    ViewData["Title"] = "Импорт данных из Excel";
+}
+
+<div class="container mt-4">
+    <h2 class="mb-4">📥 Импорт данных из Excel</h2>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success" style="white-space: pre-line;">
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger" style="white-space: pre-line;">
+            @TempData["Error"]
+        </div>
+    }
+
+    <div class="row">
+        <!-- Импорт итогов семестра -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">📋 Импорт итогов семестра</h5>
+                </div>
+                <div class="card-body">
+                    <p>Загрузите ведомость успеваемости для автоматического создания направлений на пересдачу</p>
+                    <form asp-action="ImportResults" method="post" enctype="multipart/form-data">
+                        <div class="form-group">
+                            <label>Выберите файл Excel:</label>
+                            <input type="file" name="file" class="form-control" accept=".xlsx,.xls" required />
+                            <small class="form-text text-muted">
+                                Файл должен содержать: ФИО студентов, дисциплины, оценки (2, не яв и т.д.)
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-primary mt-2">
+                            📤 Загрузить и создать направления
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Импорт учебного плана -->
+        <div class="col-md-6 mb-4">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"> Импорт учебного плана</h5>
+                </div>
+                <div class="card-body">
+                    <p>Загрузите учебный план для справочника дисциплин</p>
+                    <form asp-action="ImportCurriculum" method="post" enctype="multipart/form-data">
+                        <div class="form-group mb-3">
+                            <label for="specialtyCode">Код специальности:</label>
+                            <input type="text" id="specialtyCode" name="specialtyCode" class="form-control"
+                                   placeholder="Например: 40.02.04 или 44.02.01" required />
+                            <small class="form-text text-muted">
+                                Введите код специальности из учебного плана
+                            </small>
+                        </div>
+                        <div class="form-group">
+                            <label for="curriculumFile">Выберите файл Excel:</label>
+                            <input type="file" id="curriculumFile" name="file" class="form-control"
+                                   accept=".xlsx,.xls" required />
+                            <small class="form-text text-muted">
+                                Файл должен содержать таблицу с дисциплинами
+                            </small>
+                        </div>
+                        <button type="submit" class="btn btn-success mt-2">
+                            📥 Загрузить учебный план
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Навигация -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">📑 Быстрый доступ</h5>
+                </div>
+                <div class="card-body">
+                    <a href="/Directions" class="btn btn-info">
+                        👀 Просмотреть все направления
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

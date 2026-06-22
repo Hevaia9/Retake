@@ -1,0 +1,66 @@
+﻿@{
+    ViewData["Title"] = "Лист перезачёта";
+    var students = ViewBag.Students as List<RetakeSystem.Models.Student> ?? new List<RetakeSystem.Models.Student>();
+    var specialties = ViewBag.Specialties as List<string> ?? new List<string>();
+}
+
+<div class="container mt-4">
+    <h2>📋 Создание листа перезачёта</h2>
+
+    @if (TempData["Success"] != null)
+    {
+        <div class="alert alert-success" style="white-space: pre-line;">
+            @TempData["Success"]
+        </div>
+    }
+
+    @if (TempData["Error"] != null)
+    {
+        <div class="alert alert-danger">
+            @TempData["Error"]
+        </div>
+    }
+
+    <div class="card">
+        <div class="card-body">
+            <form asp-action="Create" method="post">
+                <div class="form-group mb-3">
+                    <label for="studentId">Студент</label>
+                    <select name="studentId" class="form-control" required>
+                        <option value="">-- Выберите студента --</option>
+                        @foreach (var student in students)
+                        {
+                            <option value="@student.Id">@student.FullName (@student.Group)</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="fromSpecialty">Направление, откуда переведён (академическая справка)</label>
+                    <select name="fromSpecialty" class="form-control" required>
+                        <option value="">-- Выберите направление --</option>
+                        @foreach (var spec in specialties)
+                        {
+                            <option value="@spec">@spec</option>
+                        }
+                    </select>
+                </div>
+
+                <div class="form-group mb-3">
+                    <label for="toSpecialty">Направление, куда переведён (учебный план)</label>
+                    <select name="toSpecialty" class="form-control" required>
+                        <option value="">-- Выберите направление --</option>
+                        @foreach (var spec in specialties)
+                        {
+                            <option value="@spec">@spec</option>
+                        }
+                    </select>
+                </div>
+
+                <button type="submit" class="btn btn-primary">
+                    📄 Создать лист перезачёта
+                </button>
+            </form>
+        </div>
+    </div>
+</div>

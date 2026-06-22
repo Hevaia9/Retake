@@ -1,0 +1,293 @@
+﻿@model RetakeSystem.Models.Direction
+@{
+    Layout = null;
+
+    // Автоматическое определение типа дисциплины
+    var title = Model.Discipline?.Title ?? "";
+    var titleLower = title.ToLower();
+
+    string headerText;
+    string fieldName;
+
+    if (titleLower.Contains("курсов"))
+    {
+        headerText = "Направление<br>на пересдачу защиты курсовой работы";
+        fieldName = "Курсовая работа";
+    }
+    else if (titleLower.Contains("практик"))
+    {
+        headerText = "Направление<br>на пересдачу зачёта по практике";
+        fieldName = "Практика";
+    }
+    else
+    {
+        headerText = "Направление<br>на пересдачу зачёта";
+        fieldName = "МДК";
+    }
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Направление №@Model.Number</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            width: 105mm;
+            height: 148mm;
+            margin: 0;
+            padding: 5mm;
+        }
+
+        .page {
+            width: 100%;
+            height: 100%;
+            border: 1.5px solid #000;
+            padding: 5mm 6mm;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 3mm;
+        }
+
+            .header .college {
+                font-weight: bold;
+                font-size: 10pt;
+                line-height: 1.3;
+                margin-bottom: 2mm;
+            }
+
+            .header .title {
+                font-weight: bold;
+                font-size: 11pt;
+                line-height: 1.3;
+            }
+
+        .fields {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1.5mm;
+        }
+
+        .field-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.5mm;
+        }
+
+        .field-label {
+            font-weight: normal;
+            white-space: nowrap;
+            min-width: 30mm;
+            margin-right: 1mm;
+            font-size: 11pt;
+        }
+
+        .field-line {
+            flex-grow: 1;
+            border-bottom: 1px solid #000;
+            margin-left: 1mm;
+            min-height: 18px;
+            display: flex;
+            align-items: flex-end;
+            padding-bottom: 1px;
+        }
+
+            .field-line .value {
+                font-size: 10pt;
+                white-space: nowrap;
+            }
+
+        .field-hint {
+            font-size: 7pt;
+            text-align: center;
+            margin-top: -0.5mm;
+            margin-left: 32mm;
+            color: #000;
+        }
+
+        .group-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.5mm;
+            gap: 1.5mm;
+        }
+
+            .group-row .field-label {
+                min-width: auto;
+                white-space: nowrap;
+                font-size: 11pt;
+            }
+
+            .group-row .field-line {
+                width: 20mm;
+                flex-grow: 0;
+                margin-left: 0.5mm;
+                margin-right: 0.5mm;
+            }
+
+        .mdk-lines {
+            margin-left: 32mm;
+            margin-top: 0.5mm;
+        }
+
+        .mdk-line {
+            border-bottom: 1px solid #000;
+            height: 18px;
+            margin-bottom: 0.5mm;
+        }
+
+        .signatures {
+            margin-top: auto;
+        }
+
+        .signature-row {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 0.5mm;
+        }
+
+            .signature-row .field-label {
+                min-width: 40mm;
+                white-space: nowrap;
+                font-size: 11pt;
+            }
+
+            .signature-row .field-line {
+                flex-grow: 1;
+            }
+
+        .signature-hint {
+            font-size: 7pt;
+            text-align: right;
+            margin-left: 42mm;
+            margin-top: -0.5mm;
+            color: #000;
+        }
+
+        @@media print {
+            body {
+                width: 105mm;
+                height: 148mm;
+                padding: 5mm;
+                margin: 0;
+            }
+
+            .page {
+                border: 1.5px solid #000;
+            }
+
+            button {
+                display: none !important;
+            }
+
+            @@page {
+                size: 105mm 148mm;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="page">
+        <div class="header">
+            <div class="college">
+                ГБПОУ СО<br>
+                «Гуманитарный колледж»
+            </div>
+            <div class="title">
+                @Html.Raw(headerText)
+            </div>
+        </div>
+
+        <div class="fields">
+            <!-- Студент -->
+            <div class="field-row">
+                <span class="field-label">Студент</span>
+                <div class="field-line">
+                    <span class="value">@Model.Student?.FullName</span>
+                </div>
+            </div>
+            <div class="field-hint">(фамилия, имя, отчество)</div>
+
+            <!-- Группа, Курс, Семестр -->
+            <div class="group-row">
+                <span class="field-label">Группа</span>
+                <div class="field-line">
+                    <span class="value">@Model.Student?.Group</span>
+                </div>
+                <span class="field-label">Курс</span>
+                <div class="field-line">
+                    <span class="value">@Model.Student?.Course</span>
+                </div>
+                <span class="field-label">Семестр</span>
+                <div class="field-line">
+                    <span class="value">@Model.Student?.Semester</span>
+                </div>
+            </div>
+
+            <!-- МДК / Практика / Курсовая -->
+            <div class="field-row">
+                <span class="field-label">@fieldName</span>
+                <div class="field-line">
+                    <span class="value">@Model.Discipline?.Title</span>
+                </div>
+            </div>
+            <div class="mdk-lines">
+                <div class="mdk-line"></div>
+            </div>
+
+            <!-- Преподаватель -->
+            <div class="field-row">
+                <span class="field-label">Преподаватель</span>
+                <div class="field-line"></div>
+            </div>
+            <div class="field-hint">(фамилия, имя, отчество)</div>
+
+            <!-- Дата пересдачи -->
+            <div class="field-row">
+                <span class="field-label">Дата пересдачи</span>
+                <div class="field-line"></div>
+            </div>
+
+            <!-- Оценка -->
+            <div class="field-row">
+                <span class="field-label">Оценка</span>
+                <div class="field-line"></div>
+            </div>
+            <div class="field-hint">(прописью)</div>
+
+            <!-- Подписи -->
+            <div class="signatures">
+                <div class="signature-row">
+                    <span class="field-label">Преподаватель</span>
+                    <div class="field-line"></div>
+                </div>
+                <div class="signature-hint">(подпись)</div>
+
+                <div class="signature-row">
+                    <span class="field-label">Зам. директора по УР</span>
+                    <div class="field-line"></div>
+                </div>
+                <div class="signature-hint">(подпись)</div>
+            </div>
+        </div>
+    </div>
+
+    <button onclick="window.print()" style="margin-top: 5mm; padding: 2mm 5mm; cursor: pointer; font-size: 12pt;">
+        🖨 Печать (Ctrl+P)
+    </button>
+</body>
+</html>

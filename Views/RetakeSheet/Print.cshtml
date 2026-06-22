@@ -1,0 +1,220 @@
+﻿@model RetakeSystem.Models.RetakeSheet
+@{
+    Layout = null;
+}
+
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Лист перезачёта - @Model.Student?.FullName</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Times New Roman', Times, serif;
+            font-size: 11pt;
+            width: 210mm;
+            min-height: 297mm;
+            padding: 15mm;
+        }
+
+        .header {
+            text-align: right;
+            margin-bottom: 10mm;
+            font-size: 10pt;
+        }
+
+        .title {
+            text-align: center;
+            font-weight: bold;
+            font-size: 12pt;
+            margin-bottom: 8mm;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 8mm;
+        }
+
+        th, td {
+            border: 1px solid #000;
+            padding: 3px 5px;
+            text-align: left;
+            font-size: 10pt;
+            vertical-align: middle;
+        }
+
+        th {
+            background-color: #f0f0f0;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .col-number {
+            width: 5%;
+            text-align: center;
+        }
+
+        .col-name {
+            width: 30%;
+        }
+
+        .col-hours {
+            width: 8%;
+            text-align: center;
+        }
+
+        .col-assessment {
+            width: 10%;
+            text-align: center;
+        }
+
+        .col-grade {
+            width: 10%;
+            text-align: center;
+        }
+
+        .col-debt {
+            width: 10%;
+            text-align: center;
+        }
+
+        .summary {
+            margin-top: 10mm;
+            font-size: 11pt;
+            line-height: 1.8;
+        }
+
+        .signatures {
+            margin-top: 15mm;
+            line-height: 2.5;
+        }
+
+        .signature-line {
+            display: flex;
+            align-items: baseline;
+            margin-bottom: 5mm;
+        }
+
+        .signature-label {
+            min-width: 60mm;
+        }
+
+        .signature-space {
+            flex-grow: 1;
+            border-bottom: 1px solid #000;
+            margin: 0 5mm;
+            min-width: 40mm;
+        }
+
+        .signature-name {
+            min-width: 50mm;
+            font-size: 10pt;
+        }
+
+        @@media print {
+            body {
+                width: 210mm;
+                padding: 15mm;
+            }
+
+            button {
+                display: none !important;
+            }
+
+            @@page {
+                size: A4;
+                margin: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        @Model.ToSpecialty
+    </div>
+
+    <div class="title">
+        ЛИСТ ПЕРЕЗАЧЁТА ДИСЦИПЛИН
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th rowspan="2" class="col-number">№<br>п/п</th>
+                <th rowspan="2" class="col-name">Наименование дисциплины/МДК/ПМ</th>
+                <th colspan="3">По учебному плану</th>
+                <th colspan="3">По академической справке (справке о периоде обучения)</th>
+                <th rowspan="2" class="col-grade">Оценка</th>
+                <th rowspan="2" class="col-debt">Часы академической задолженности</th>
+            </tr>
+            <tr>
+                <th class="col-hours">Общий объем часов</th>
+                <th class="col-assessment">Вид аттестационных испытаний</th>
+                <th class="col-hours">Общий объем аттестационных испытаний</th>
+                <th class="col-hours">Общий объем часов</th>
+                <th class="col-assessment">Вид аттестационных испытаний</th>
+                <th class="col-hours">Общий объем аттестационных испытаний</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var item in Model.Disciplines.OrderBy(d => d.RowNumber))
+            {
+                <tr>
+                    <td class="col-number">@item.RowNumber</td>
+                    <td class="col-name">@item.Discipline?.Title</td>
+                    <td class="col-hours">@item.HoursByPlan</td>
+                    <td class="col-assessment">@item.AssessmentTypeByPlan</td>
+                    <td class="col-hours">@item.HoursByPlan</td>
+                    <td class="col-hours">@item.HoursByCertificate</td>
+                    <td class="col-assessment">@item.AssessmentTypeByCertificate</td>
+                    <td class="col-hours">@item.HoursByCertificate</td>
+                    <td class="col-grade">@item.Grade</td>
+                    <td class="col-debt">@(item.HoursDifference > 0 ? $"+{item.HoursDifference}" : (item.HoursDifference < 0 ? item.HoursDifference.ToString() : "-"))</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <div class="summary">
+        <p><strong>Перезачёт в счёт следующего семестра/курса</strong> @Model.TotalHoursTransferred часов</p>
+        <p><strong>Академическая задолженность</strong> @Model.TotalHoursDebt часов</p>
+    </div>
+
+    <div class="signatures">
+        <div class="signature-line">
+            <span class="signature-label">Заместитель директора по УР</span>
+            <span class="signature-space"></span>
+            <span class="signature-name">/Джусоева О.В./</span>
+        </div>
+
+        <div class="signature-line">
+            <span class="signature-label">Классный руководитель</span>
+            <span class="signature-space"></span>
+            <span class="signature-name">/Климчук Л.В./</span>
+        </div>
+
+        <div class="signature-line">
+            <span class="signature-label">Ознакомлен</span>
+            <span class="signature-space"></span>
+            <span class="signature-name">/@Model.Student?.FullName/</span>
+        </div>
+
+        <div class="signature-line">
+            <span class="signature-label">Дата</span>
+            <span class="signature-space" style="min-width: 30mm;"></span>
+            <span class="signature-name">@Model.CreatedAt.ToString("dd.MM.yyyy")</span>
+        </div>
+    </div>
+
+    <button onclick="window.print()" style="margin-top: 10mm; padding: 3mm 8mm; cursor: pointer; font-size: 12pt;">
+        🖨 Печать (Ctrl+P)
+    </button>
+</body>
+</html>

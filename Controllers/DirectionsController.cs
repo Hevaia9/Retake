@@ -1,10 +1,12 @@
-﻿using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using RetakeSystem.Data;
 using RetakeSystem.Models;
 
 namespace RetakeSystem.Controllers
 {
+    [Authorize]
     public class DirectionsController : Controller
     {
         private readonly AppDbContext _db;

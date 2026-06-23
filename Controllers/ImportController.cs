@@ -4,9 +4,11 @@ using RetakeSystem.Data;
 using RetakeSystem.Models;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
+using Microsoft.AspNetCore.Authorization;
 
 namespace RetakeSystem.Controllers
 {
+    [Authorize]
     public class ImportController : Controller
     {
         private readonly AppDbContext _db;
